@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: griffinjam-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/index.js
+    envVars:
+      - key: CLIENT_URL
+        value: https://griffinjam.vercel.app
+      - key: NODE_ENV
+        value: production
