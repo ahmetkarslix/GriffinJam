@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Spade, Users, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Spade, Users, ArrowRight, Loader2, Sparkles, X } from 'lucide-react';
 import { apiUrl } from '../api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,20 @@ export default function Home() {
   const [deckType, setDeckType] = useState('fibonacci');
   const [joinRoomId, setJoinRoomId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showCredits, setShowCredits] = useState(false);
+  const creditsRef = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!showCredits) return;
+    function handleClickOutside(e) {
+      if (creditsRef.current && !creditsRef.current.contains(e.target)) {
+        setShowCredits(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCredits]);
 
   async function handleCreate() {
     setLoading(true);
@@ -160,8 +173,41 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-border/50 px-6 py-4 text-center text-muted-foreground text-sm relative z-10 backdrop-blur-sm">
-        GriffinJam &mdash; Planning Poker
+        <button
+          onClick={() => setShowCredits(true)}
+          className="text-primary/70 hover:text-primary transition-colors cursor-pointer"
+        >
+          GriffinJam
+        </button>
+        {' '}&mdash; Planning Poker
       </footer>
+
+      {/* Credits Popup */}
+      {showCredits && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-slide-up-fade">
+          <div
+            ref={creditsRef}
+            className="relative glass-card border border-border/50 rounded-2xl shadow-2xl shadow-black/30 p-6 max-w-xs w-full mx-4 text-center"
+          >
+            <button
+              onClick={() => setShowCredits(false)}
+              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">
+              <Spade className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <h3 className="text-lg font-bold text-gradient-primary mb-3">GriffinJam</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Built by <span className="text-foreground font-medium">Ahmet Karsli</span> &amp; <span className="text-foreground font-medium">Claude Code</span>
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              for <span className="text-foreground font-medium">InsiderOne</span> &amp; <span className="text-foreground font-medium">Griffin Team</span>
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

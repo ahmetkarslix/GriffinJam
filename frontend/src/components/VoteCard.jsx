@@ -6,7 +6,7 @@ export default function VoteCard({ value, selected, onClick, disabled }) {
       onClick={() => onClick(value)}
       disabled={disabled}
       className={cn(
-        'relative w-[4.5rem] h-[6.5rem] md:w-22 md:h-32 rounded-xl border-2 font-bold text-lg',
+        'relative w-[3.5rem] h-[5rem] md:w-[4.5rem] md:h-[6.5rem] rounded-xl border-2 font-bold text-base md:text-lg',
         'transition-all duration-200 cursor-pointer',
         'flex items-center justify-center',
         'active:scale-95',

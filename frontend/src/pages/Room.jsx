@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Spade, Copy, Eye, EyeOff, RotateCcw, Loader2, SearchX } from 'lucide-react';
+import { Spade, Copy, Eye, Loader2, SearchX } from 'lucide-react';
 import { socket } from '../socket';
 import { apiUrl } from '../api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -16,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import JoinModal from '../components/JoinModal';
 import VoteCard from '../components/VoteCard';
-import UserList from '../components/UserList';
+import PokerTable from '../components/PokerTable';
 import Results from '../components/Results';
 
 const DECK_LABELS = {
@@ -97,9 +96,15 @@ export default function Room() {
   const handleJoin = useCallback(
     (name, isSpectator) => {
       sessionStorage.setItem('griffinjam-name', name);
+
+      // Register listener BEFORE emitting so we never miss the first room-updated
+      const onFirstState = (state) => {
+        setRoomState(state);
+      };
+      socket.on('room-updated', onFirstState);
+
       socket.connect();
 
-      // Wait for actual connection before emitting join
       const doJoin = () => {
         socket.emit('join-room', { roomId, userName: name, isSpectator });
         setJoined(true);
@@ -184,9 +189,6 @@ export default function Room() {
 
   const isSpectator = roomState?.users.find((u) => u.id === socket.id)?.isSpectator;
   const isCreator = roomState?.creatorId === socket.id;
-  const votedCount = roomState?.votedCount || 0;
-  const voterCount = roomState?.voterCount || 0;
-  const voteProgress = voterCount > 0 ? (votedCount / voterCount) * 100 : 0;
 
   return (
     <div className="min-h-screen flex flex-col relative">
@@ -195,7 +197,7 @@ export default function Room() {
 
       {/* Header */}
       <header className="border-b border-border/50 px-4 py-3 relative z-10 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
@@ -230,17 +232,17 @@ export default function Room() {
 
             <Button variant="outline" size="sm" onClick={handleCopyLink} className="border-border/60">
               <Copy className="w-4 h-4" />
-              Davet Et
+              <span className="hidden sm:inline">Davet Et</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row max-w-6xl mx-auto w-full relative z-10">
-        {/* Main area */}
-        <main className="flex-1 p-4 md:p-6 space-y-6">
-          {/* Task name */}
-          <form onSubmit={handleSetTask} className="flex gap-2">
+      {/* Main content */}
+      <main className={`flex-1 flex flex-col max-w-5xl mx-auto w-full relative z-10 px-4 ${!isSpectator && !roomState?.revealed ? 'pb-48 md:pb-36' : 'pb-8'}`}>
+        {/* Task input */}
+        <div className="py-4">
+          <form onSubmit={handleSetTask} className="flex gap-2 max-w-xl mx-auto w-full">
             <Input
               type="text"
               placeholder="Task adı veya açıklaması..."
@@ -253,104 +255,68 @@ export default function Room() {
           </form>
 
           {roomState?.currentTask && (
-            <div className="bg-primary/8 border border-primary/15 rounded-xl px-4 py-3 animate-slide-up-fade">
+            <div className="mt-3 max-w-xl mx-auto bg-primary/8 border border-primary/15 rounded-xl px-4 py-3 animate-slide-up-fade">
               <div className="text-xs text-primary font-semibold uppercase tracking-wider mb-1">
                 Aktif Task
               </div>
               <div className="font-medium">{roomState.currentTask}</div>
             </div>
           )}
+        </div>
 
-          {/* Status bar */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
-              {roomState?.revealed ? (
-                <Badge variant="default" className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
-                  Oylar açıklandı!
-                </Badge>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      <span className="text-primary font-semibold">{votedCount}</span>
-                      {' / '}
-                      <span>{voterCount}</span>
-                      {' oy kullanıldı'}
-                    </span>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {voterCount > 0 ? Math.round(voteProgress) : 0}%
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-                      style={{ width: `${voteProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
+        {/* Poker Table */}
+        <PokerTable
+          users={roomState?.users || []}
+          revealed={roomState?.revealed}
+          creatorId={roomState?.creatorId}
+          isCreator={isCreator}
+          votedCount={roomState?.votedCount || 0}
+          voterCount={roomState?.voterCount || 0}
+          onReveal={handleReveal}
+          onReset={handleReset}
+        />
+
+        {/* Spectator mode notice */}
+        {isSpectator && !roomState?.revealed && (
+          <div className="text-center py-4 text-muted-foreground flex flex-col items-center gap-2 animate-slide-up-fade">
+            <div className="w-12 h-12 bg-secondary/60 rounded-2xl flex items-center justify-center">
+              <Eye className="w-5 h-5" />
             </div>
-
-            {isCreator && (
-              <div className="flex gap-2 shrink-0">
-                {!roomState?.revealed ? (
-                  <Button
-                    onClick={handleReveal}
-                    disabled={!roomState?.votedCount}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20"
-                  >
-                    <EyeOff className="w-4 h-4" />
-                    Oyları Göster
-                  </Button>
-                ) : (
-                  <Button onClick={handleReset} className="shadow-lg shadow-primary/20">
-                    <RotateCcw className="w-4 h-4" />
-                    Yeni Oylama
-                  </Button>
-                )}
-              </div>
-            )}
+            <div>
+              <div className="font-medium text-foreground text-sm">Gözlemci Modu</div>
+              <div className="text-xs mt-0.5">Oylamayı izliyorsun.</div>
+            </div>
           </div>
+        )}
 
-          {/* Cards */}
-          {!isSpectator && (
-            <div className="flex flex-wrap gap-3 justify-center py-4">
-              {roomState?.deck?.values.map((value, i) => (
-                <VoteCard
-                  key={value}
-                  value={value}
-                  selected={myVote === value}
-                  onClick={handleVote}
-                  disabled={roomState?.revealed}
-                />
-              ))}
-            </div>
-          )}
+        {/* Results */}
+        {roomState?.revealed && (
+          <div className="max-w-lg mx-auto w-full mt-4">
+            <Results results={roomState.results} />
+          </div>
+        )}
+      </main>
 
-          {isSpectator && !roomState?.revealed && (
-            <div className="text-center py-10 text-muted-foreground flex flex-col items-center gap-3 animate-slide-up-fade">
-              <div className="w-14 h-14 bg-secondary/60 rounded-2xl flex items-center justify-center">
-                <Eye className="w-6 h-6" />
+      {/* Voting cards - fixed at bottom */}
+      {!isSpectator && (
+        <div className="fixed bottom-0 left-0 right-0 z-20">
+          <div className="border-t border-border/50 backdrop-blur-md bg-background/80">
+            <div className="max-w-5xl mx-auto px-4 pt-6 pb-4">
+              <div className="flex gap-2 md:gap-3 justify-center flex-wrap pb-safe">
+                {roomState?.deck?.values.map((value) => (
+                  <VoteCard
+                    key={value}
+                    value={value}
+                    selected={myVote === value}
+                    onClick={handleVote}
+                    disabled={roomState?.revealed}
+                  />
+                ))}
               </div>
-              <div>
-                <div className="font-medium text-foreground">Gözlemci Modu</div>
-                <div className="text-sm mt-0.5">Oylamayı izliyorsun.</div>
-              </div>
             </div>
-          )}
-
-          {/* Results */}
-          {roomState?.revealed && <Results results={roomState.results} />}
-        </main>
-
-        {/* Sidebar - Users */}
-        <aside className="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-border/50 p-4 md:p-5">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-            Katılımcılar ({roomState?.users.length || 0})
-          </h3>
-          <UserList users={roomState?.users || []} revealed={roomState?.revealed} creatorId={roomState?.creatorId} />
-        </aside>
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

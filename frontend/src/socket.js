@@ -7,7 +7,8 @@ export const socket = io(URL, {
   transports: ['websocket', 'polling'],
   reconnection: true,
   reconnectionAttempts: 10,
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 15000,
-  randomizationFactor: 0.5,
+  reconnectionDelay: 500,
+  reconnectionDelayMax: 5000,
+  randomizationFactor: 0.3,
+  timeout: 5000,
 });
