@@ -4,6 +4,7 @@ const URL = (import.meta.env.VITE_SERVER_URL || 'http://localhost:3001').replace
 
 export const socket = io(URL, {
   autoConnect: false,
+  transports: ['websocket', 'polling'],
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,

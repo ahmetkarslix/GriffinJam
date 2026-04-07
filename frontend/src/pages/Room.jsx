@@ -98,8 +98,18 @@ export default function Room() {
     (name, isSpectator) => {
       sessionStorage.setItem('griffinjam-name', name);
       socket.connect();
-      socket.emit('join-room', { roomId, userName: name, isSpectator });
-      setJoined(true);
+
+      // Wait for actual connection before emitting join
+      const doJoin = () => {
+        socket.emit('join-room', { roomId, userName: name, isSpectator });
+        setJoined(true);
+      };
+
+      if (socket.connected) {
+        doJoin();
+      } else {
+        socket.once('connect', doJoin);
+      }
     },
     [roomId],
   );

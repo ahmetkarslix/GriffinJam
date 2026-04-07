@@ -30,6 +30,12 @@ export function joinRoom(roomId, socketId, userName, isSpectator = false) {
   const room = rooms.get(roomId);
   if (!room) return null;
 
+  // Cancel pending deletion if someone joins back
+  if (room.deleteTimeout) {
+    clearTimeout(room.deleteTimeout);
+    room.deleteTimeout = null;
+  }
+
   room.users.set(socketId, {
     id: socketId,
     name: userName,
@@ -52,7 +58,13 @@ export function leaveRoom(roomId, socketId) {
   room.votes.delete(socketId);
 
   if (room.users.size === 0) {
-    rooms.delete(roomId);
+    // Don't delete immediately — give time for others to join or reconnect
+    room.deleteTimeout = setTimeout(() => {
+      const r = rooms.get(roomId);
+      if (r && r.users.size === 0) {
+        rooms.delete(roomId);
+      }
+    }, 5 * 60 * 1000); // 5 minutes grace period
   } else if (room.creatorId === socketId) {
     // Transfer creator to the earliest joined user
     const earliest = Array.from(room.users.values()).sort((a, b) => a.joinedAt - b.joinedAt)[0];
