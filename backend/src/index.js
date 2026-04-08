@@ -2,6 +2,8 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { DECKS } from './decks.js';
 import {
   createRoom,
@@ -254,6 +256,17 @@ io.on('connection', (socket) => {
       console.error('disconnect error:', err);
     }
   });
+});
+
+// Serve frontend static files in production
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const publicPath = path.join(__dirname, '..', 'public');
+app.use(express.static(publicPath));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+    return next();
+  }
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3001;
