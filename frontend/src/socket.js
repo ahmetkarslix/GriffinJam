@@ -1,8 +1,8 @@
 import { io } from 'socket.io-client';
 
-const URL = (import.meta.env.VITE_SERVER_URL || 'http://localhost:3001').replace(/\/+$/, '');
+const SERVER_URL = import.meta.env.VITE_SERVER_URL?.replace(/\/+$/, '');
 
-export const socket = io(URL, {
+export const socket = io(SERVER_URL || undefined, {
   autoConnect: false,
   transports: ['websocket', 'polling'],
   reconnection: true,
